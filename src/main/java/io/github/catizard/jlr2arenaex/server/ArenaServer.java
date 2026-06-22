@@ -164,16 +164,16 @@ public class ArenaServer extends WebSocketServer {
 				// Update everyone's peer list
 				broadcast(ServerToClient.STC_USERLIST, state.getPeerList().pack());
 			}
-		        case CTS_MESSAGE -> {
-			        bytes.put(0, (byte)0x20);
-			        String s = new String(bytes.array(), java.nio.charset.Charset.forName("UTF-8"));
-			        Message message = new Message(
+			case CTS_MESSAGE -> {
+				bytes.put(0, (byte)0x20);
+				String s = new String(bytes.array(), java.nio.charset.Charset.forName("UTF-8"));
+				Message message = new Message(
 							      String.format("%s:%s", state.getPeers().get(clientAddress).getUserName(), s),
 							      clientAddress,
 							      true
 							      );
-			        broadcast(ServerToClient.STC_MESSAGE, message.pack(), clientAddress);
-		        }
+				broadcast(ServerToClient.STC_MESSAGE, message.pack(), clientAddress);
+			}
 			case CTS_MISSING_CHART -> {
 				Message message = new Message(
 						String.format("[!] %s is missing the selected chart!", state.getPeers().get(clientAddress).getUserName()),
