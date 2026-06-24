@@ -166,7 +166,7 @@ public class ArenaServer extends WebSocketServer {
 				broadcast(ServerToClient.STC_USERLIST, state.getPeerList().pack());
 			}
 			case CTS_MESSAGE -> {
-				String s = new String(bytes.slice().array(), StandardCharsets.UTF_8);
+				String s = new String(data);
 				Message message = new Message(s, clientAddress, false);
 				broadcast(ServerToClient.STC_MESSAGE, message.pack(), clientAddress);
 			}
