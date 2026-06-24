@@ -13,6 +13,7 @@ import org.msgpack.value.Value;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import java.util.Optional;
 import java.util.function.Consumer;
@@ -165,13 +166,8 @@ public class ArenaServer extends WebSocketServer {
 				broadcast(ServerToClient.STC_USERLIST, state.getPeerList().pack());
 			}
 			case CTS_MESSAGE -> {
-				bytes.put(0, (byte)0x20);
-				String s = new String(bytes.array(), java.nio.charset.Charset.forName("UTF-8"));
-				Message message = new Message(
-							      String.format("%s:%s", state.getPeers().get(clientAddress).getUserName(), s),
-							      clientAddress,
-							      true
-							      );
+				String s = new String(bytes.array(), StandardCharsets.UTF_8).substring(1);
+				Message message = new Message(s, clientAddress, false);
 				broadcast(ServerToClient.STC_MESSAGE, message.pack(), clientAddress);
 			}
 			case CTS_MISSING_CHART -> {
