@@ -11,7 +11,8 @@ public enum ClientToServer {
     CTS_SET_HOST(8),
     CTS_KICK_USER(9),
     CTS_ITEM(10),
-    CTS_ITEM_SETTINGS(11);
+    CTS_ITEM_SETTINGS(11),
+    CTS_FILE_TRANSFER(12);
 
     final char value;
 
@@ -32,6 +33,7 @@ public enum ClientToServer {
             case 9 -> CTS_KICK_USER;
             case 10 -> CTS_ITEM;
             case 11 -> CTS_ITEM_SETTINGS;
+            case 12 -> CTS_FILE_TRANSFER;
             default -> throw new IllegalStateException("Unexpected value: " + value);
         };
     }

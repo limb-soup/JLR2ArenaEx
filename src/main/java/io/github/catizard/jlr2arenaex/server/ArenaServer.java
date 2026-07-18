@@ -13,7 +13,6 @@ import org.msgpack.value.Value;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
-import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import java.util.Optional;
 import java.util.function.Consumer;
@@ -24,6 +23,12 @@ public class ArenaServer extends WebSocketServer {
 	private volatile boolean autoRotateHost = false;
 	private Consumer<Exception> exceptionHandler;
 	public ServerState state = new ServerState();
+	private SelectedBMSMessage[] selectedBMS = new SelectedBMSMessage[2];
+	private byte[] userFile = new byte[1 << 27];
+	private int userFileSize = 0;
+	private String currentHash = null;
+	private String currentTitle = null;
+	private boolean strictHash = true;
 
 	public ArenaServer() {
 		this(2222);
@@ -41,6 +46,15 @@ public class ArenaServer extends WebSocketServer {
 	public void onOpen(WebSocket conn, ClientHandshake handshake) {
 		Address clientAddress = new Address(conn.getRemoteSocketAddress());
 		Logger.getGlobal().info(String.format("[+] Client (%s:%d) connected", clientAddress.getHost(), clientAddress.getPort()));
+		Message message = new Message(String.format("You have connected to the server.\n" +
+													"Type \"/help\" or \"/?\" to view available commands.\n" +
+													"Extensions enabled may be incompatible with LR2.\n" +
+													"Hash check is %s.",
+													strictHash ? "enabled" : "disabled"
+													),
+									  clientAddress,
+									  true);
+		send(ServerToClient.STC_MESSAGE, clientAddress, message.pack());
 	}
 
 	@Override
@@ -122,11 +136,19 @@ public class ArenaServer extends WebSocketServer {
 				if (state.getHost().equals(clientAddress)) {
 					state.setCurrentRandomSeed(selectedBMSMessage.getRandomSeed());
 					// state.setItemModeEnabled(...);
+					currentHash = selectedBMSMessage.getMd5();
+					currentTitle = selectedBMSMessage.getTitle();
+					selectedBMS[1] = selectedBMS[0];
+					selectedBMS[0] = selectedBMSMessage;
+					userFileSize = 0;
 					state.resetEveryone();
 					broadcast(ServerToClient.STC_SELECTED_CHART_RANDOM, selectedBMSMessage.pack());
 				}
 				state.getPeer(clientAddress).ifPresent(peer -> {
 					peer.setSelectedMD5(selectedBMSMessage.getMd5());
+					if (!strictHash && selectedBMSMessage.getTitle().equals(currentTitle)){
+						peer.setSelectedMD5(currentHash);
+					}
 					peer.setOption(selectedBMSMessage.getOption());
 					peer.setGauge(selectedBMSMessage.getGauge());
 				});
@@ -167,6 +189,56 @@ public class ArenaServer extends WebSocketServer {
 			}
 			case CTS_MESSAGE -> {
 				String s = new String(data);
+				if (s.length() > 1 && s.charAt(0) == '/'){
+					if (s.equals("/help") || s.equals("/?")){
+						Message message;
+						message = new Message (String.format("/bms_send : send directory of the current chart for download\n" +
+											 "/bms_dl : download uploaded chart\n" +
+											 "/bms_request (1) : receive hash for (previously) selected chart\n" +
+											 "/hash_enforce : toggle whether the bms file hash is enforced"),
+									   clientAddress,
+									   true
+								   );
+					send(ServerToClient.STC_MESSAGE, clientAddress, message.pack());
+					return;
+					}
+					if (s.equals("/bms_send") && clientAddress.equals(state.getHost())){
+						byte[] dat = new byte[4];
+						dat[0] = 0;
+						dat[1] = 0;
+						dat[2] = 0;
+						dat[3] = 0x10;
+						send(ServerToClient.STC_ITEM,clientAddress,dat);
+						return;
+					}
+					if (s.equals("/bms_dl") && userFileSize > 0){
+						byte[] dat = new byte[4];
+						dat[0] = (byte) userFileSize;
+						dat[1] = (byte) (userFileSize >>> 8);
+						dat[2] = (byte) (userFileSize >>> 16);
+						dat[3] = (byte) (userFileSize >>> 24);
+						dat[3] |= 0x0;
+						send(ServerToClient.STC_ITEM,clientAddress,dat);
+						System.out.println("Sending file size to user");
+						return;
+					}
+					if (s.length() >= "/bms_request".length() &&
+						s.substring(0,"/bms_request".length()).equals("/bms_request") &&
+						selectedBMS[0] != null){
+						if (s.substring("/bms_request".length()).contains("1") && selectedBMS[1] != null)
+							send(ServerToClient.STC_SELECTED_CHART_RANDOM, clientAddress, selectedBMS[1].pack());
+						else send(ServerToClient.STC_SELECTED_CHART_RANDOM, clientAddress, selectedBMS[0].pack());
+					}
+					if (s.equals("/hash_enforce")){
+						strictHash = !strictHash;
+						Message message = new Message(String.format("Hash check is %s.",
+																	strictHash ? "enabled" : "disabled"
+																	),
+													  clientAddress,
+													  true);
+						broadcast(ServerToClient.STC_MESSAGE, message.pack());
+					}
+				}
 				Message message = new Message(s, clientAddress, false);
 				broadcast(ServerToClient.STC_MESSAGE, message.pack(), clientAddress);
 			}
@@ -203,6 +275,83 @@ public class ArenaServer extends WebSocketServer {
 			}
 			case CTS_ITEM -> { /* TODO */ }
 			case CTS_ITEM_SETTINGS -> { /* TODO */ }
+			case CTS_FILE_TRANSFER -> {
+				if (data.length < 4) {
+					System.out.println("length < 4");
+					return;
+				}
+				switch(data[3] >>> 4){
+				case 0x0: { // client is sending userfile{
+					if (!clientAddress.equals(state.getHost())) {
+						System.out.println("Non-host attempted to send file");
+						return;
+					}
+					userFileSize = 0;
+					userFileSize += data[0] & 0xFF;
+					userFileSize += (int)(data[1] & 0xFF) << 8;
+					userFileSize += (int)(data[2] & 0xFF) << 16;
+					userFileSize += (int)(data[3] & 0x0F) << 24;
+					Message message = new Message(
+												  "Upload failed!",
+												  null,
+												  true
+												  );
+					if (userFileSize >= userFile.length) {
+						send(ServerToClient.STC_MESSAGE, clientAddress, message.pack());
+						return;
+					}
+					if (data.length != userFileSize + 4) {
+						Logger.getGlobal().info(String.format("[!] File size does not match size provided by user, %s",
+															  state.getPeers().get(clientAddress).getUserName()));
+						userFileSize = 0;
+						send(ServerToClient.STC_MESSAGE, clientAddress, message.pack());
+						return;
+					}
+					System.arraycopy(data, 4, userFile, 0, userFileSize);
+					message = new Message(
+										  String.format("%s uploaded the current chart; use \"/bms_dl\" to download.", state.getPeers().get(clientAddress).getUserName()),
+										  clientAddress,
+										  true
+										  );
+					broadcast(ServerToClient.STC_MESSAGE, message.pack());
+					System.out.println("upload success");
+					return;
+				}
+				case 0x1:{ // client requesting next segment of userfile
+					int fileIndex = 0;
+					fileIndex += data[0] & 0xFF;
+					fileIndex += (int)(data[1] & 0xFF) << 8;
+					fileIndex += (int)(data[2] & 0xFF) << 16;
+					fileIndex += (int)(data[3] & 0x0F) << 24;
+					if (fileIndex >= userFileSize){
+						Logger.getGlobal().info(String.format("[!] File index provided by user, %s, is past the end of the file",
+															  state.getPeers().get(clientAddress).getUserName()));
+						return;
+					}
+					int remainder = userFileSize - fileIndex;
+					if (remainder > 4000000){
+						remainder = 4000000;
+					}
+					byte[] dat = new byte[5+remainder];
+					dat[0] = (byte) ServerToClient.STC_ITEM.getValue();
+					dat[1] = (byte) remainder;
+					dat[2] = (byte) (remainder >>> 8);
+					dat[3] = (byte) (remainder >>> 16);
+					dat[4] = (byte) (remainder >>> 24);
+					dat[4] |= (remainder == userFileSize - fileIndex) ? 0x30 : 0x20;
+					System.arraycopy(userFile, fileIndex, dat, 5, remainder);
+					this.getConnections().stream()
+						.filter(conn -> clientAddress.equals(new Address(conn.getRemoteSocketAddress())))
+						.findAny()
+						.ifPresent(conn -> conn.send(dat));
+					System.out.println("Sent file to client: " + remainder + " bytes");
+					return;
+				}
+				default:{
+					System.out.println("Received invalid byte, got: " + (data[3] >>> 4));
+				}
+				}
+			}
 			default -> Logger.getGlobal().severe("[!] unknown message received " + value);
 		}
 	}

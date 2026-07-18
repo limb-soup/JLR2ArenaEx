@@ -9,7 +9,8 @@ public enum ServerToClient {
     STC_MESSAGE(6),
     STC_MISSING_CHART(7),
     STC_ITEM(8),
-    STC_ITEM_SETTINGS(9);
+    STC_ITEM_SETTINGS(9),
+    STC_FILE_TRANSFER(10);
 
     char value;
 
@@ -28,6 +29,7 @@ public enum ServerToClient {
             case 7 -> STC_MISSING_CHART;
             case 8 -> STC_ITEM;
             case 9 -> STC_ITEM_SETTINGS;
+            case 10 -> STC_FILE_TRANSFER;
             default -> throw new IllegalStateException("Unexpected value: " + value);
         };
     }
