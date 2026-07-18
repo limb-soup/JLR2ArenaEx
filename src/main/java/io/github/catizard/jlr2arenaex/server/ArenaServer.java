@@ -151,6 +151,7 @@ public class ArenaServer extends WebSocketServer {
 					}
 					peer.setOption(selectedBMSMessage.getOption());
 					peer.setGauge(selectedBMSMessage.getGauge());
+					peer.setTotalNotes(selectedBMSMessage.getTotalNotes());
 				});
 			}
 			case CTS_PLAYER_SCORE -> {
