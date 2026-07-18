@@ -48,12 +48,15 @@ public class ArenaServer extends WebSocketServer {
 		Logger.getGlobal().info(String.format("[+] Client (%s:%d) connected", clientAddress.getHost(), clientAddress.getPort()));
 		Message message = new Message(String.format("You have connected to the server.\n" +
 													"Type \"/help\" or \"/?\" to view available commands.\n" +
-													"Extensions enabled may be incompatible with LR2.\n" +
-													"Hash check is %s.",
-													strictHash ? "enabled" : "disabled"
-													),
+													"Extensions enabled may be incompatible with LR2.\n"),
 									  clientAddress,
 									  true);
+		send(ServerToClient.STC_MESSAGE, clientAddress, message.pack());
+		message = new Message(String.format("Hash check is %s.",
+											strictHash ? "enabled" : "disabled"
+											),
+							  clientAddress,
+							  true);
 		send(ServerToClient.STC_MESSAGE, clientAddress, message.pack());
 	}
 
@@ -209,7 +212,7 @@ public class ArenaServer extends WebSocketServer {
 						dat[1] = 0;
 						dat[2] = 0;
 						dat[3] = 0x10;
-						send(ServerToClient.STC_ITEM,clientAddress,dat);
+						send(ServerToClient.STC_FILE_TRANSFER,clientAddress,dat);
 						return;
 					}
 					if (s.equals("/bms_dl") && userFileSize > 0){
@@ -219,8 +222,7 @@ public class ArenaServer extends WebSocketServer {
 						dat[2] = (byte) (userFileSize >>> 16);
 						dat[3] = (byte) (userFileSize >>> 24);
 						dat[3] |= 0x0;
-						send(ServerToClient.STC_ITEM,clientAddress,dat);
-						System.out.println("Sending file size to user");
+						send(ServerToClient.STC_FILE_TRANSFER,clientAddress,dat);
 						return;
 					}
 					if (s.length() >= "/bms_request".length() &&
@@ -284,7 +286,6 @@ public class ArenaServer extends WebSocketServer {
 				switch(data[3] >>> 4){
 				case 0x0: { // client is sending userfile{
 					if (!clientAddress.equals(state.getHost())) {
-						System.out.println("Non-host attempted to send file");
 						return;
 					}
 					userFileSize = 0;
@@ -334,7 +335,7 @@ public class ArenaServer extends WebSocketServer {
 						remainder = 4000000;
 					}
 					byte[] dat = new byte[5+remainder];
-					dat[0] = (byte) ServerToClient.STC_ITEM.getValue();
+					dat[0] = (byte) ServerToClient.STC_FILE_TRANSFER.getValue();
 					dat[1] = (byte) remainder;
 					dat[2] = (byte) (remainder >>> 8);
 					dat[3] = (byte) (remainder >>> 16);
@@ -345,7 +346,6 @@ public class ArenaServer extends WebSocketServer {
 						.filter(conn -> clientAddress.equals(new Address(conn.getRemoteSocketAddress())))
 						.findAny()
 						.ifPresent(conn -> conn.send(dat));
-					System.out.println("Sent file to client: " + remainder + " bytes");
 					return;
 				}
 				default:{
