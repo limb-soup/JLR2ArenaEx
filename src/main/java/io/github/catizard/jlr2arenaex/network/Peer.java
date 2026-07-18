@@ -29,7 +29,7 @@ public class Peer {
         this.score = new Score(arr.get(3));
         this.option = arr.get(4).asIntegerValue().toInt();
         this.gauge = arr.get(5).asIntegerValue().toInt();
-        if (arr.size() >= 6)
+        if (arr.size() >= 7)
             this.totalNotes = arr.get(6).asIntegerValue().toInt();
         else this.totalNotes = 0;
     }

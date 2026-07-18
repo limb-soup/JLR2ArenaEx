@@ -52,7 +52,7 @@ public class SelectedBMSMessage implements EqualsWithoutRandomPort<SelectedBMSMe
         this.option = arr.get(4).asIntegerValue().asInt();
         this.gauge = arr.get(5).asIntegerValue().toInt();
         this.itemModeEnabled = arr.get(6).asBooleanValue().getBoolean();
-        if (arr.size() >= 7)
+        if (arr.size() >= 8)
             this.totalNotes = arr.get(7).asIntegerValue().asInt();
         else this.totalNotes = 0;
     }
