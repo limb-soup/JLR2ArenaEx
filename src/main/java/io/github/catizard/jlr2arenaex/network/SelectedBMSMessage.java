@@ -12,6 +12,7 @@ public class SelectedBMSMessage implements EqualsWithoutRandomPort<SelectedBMSMe
     private String md5;
     private String title;
     private String artist;
+    private int totalNotes;
     private int option;
     private int gauge;
     private boolean itemModeEnabled;
@@ -25,6 +26,18 @@ public class SelectedBMSMessage implements EqualsWithoutRandomPort<SelectedBMSMe
         this.md5 = md5;
         this.title = title;
         this.artist = artist;
+        this.totalNotes = 0;
+        this.option = option;
+        this.gauge = gauge;
+        this.itemModeEnabled = itemModeEnabled;
+    }
+
+    public SelectedBMSMessage(int randomSeed, String md5, String title, String artist, int totalNotes, int option, int gauge, boolean itemModeEnabled) {
+        this.randomSeed = randomSeed;
+        this.md5 = md5;
+        this.title = title;
+        this.artist = artist;
+        this.totalNotes = totalNotes;
         this.option = option;
         this.gauge = gauge;
         this.itemModeEnabled = itemModeEnabled;
@@ -39,6 +52,9 @@ public class SelectedBMSMessage implements EqualsWithoutRandomPort<SelectedBMSMe
         this.option = arr.get(4).asIntegerValue().asInt();
         this.gauge = arr.get(5).asIntegerValue().toInt();
         this.itemModeEnabled = arr.get(6).asBooleanValue().getBoolean();
+        if (arr.size() >= 7)
+            this.totalNotes = arr.get(7).asIntegerValue().asInt();
+        else this.totalNotes = 0;
     }
 
     public byte[] pack() {
@@ -52,6 +68,7 @@ public class SelectedBMSMessage implements EqualsWithoutRandomPort<SelectedBMSMe
             packer.packInt(option);
             packer.packInt(gauge);
             packer.packBoolean(itemModeEnabled);
+            packer.packInt(totalNotes);
             packer.close();
             return packer.toByteArray();
         } catch (Exception e) {
@@ -92,6 +109,14 @@ public class SelectedBMSMessage implements EqualsWithoutRandomPort<SelectedBMSMe
         this.artist = artist;
     }
 
+    public int getTotalNotes() {
+        return totalNotes;
+    }
+
+    public void setTotalNotes(int totalNotes) {
+        this.totalNotes = totalNotes;
+    }
+
     public int getOption() {
         return option;
     }
@@ -120,12 +145,12 @@ public class SelectedBMSMessage implements EqualsWithoutRandomPort<SelectedBMSMe
     public boolean equals(Object o) {
         if (o == null || getClass() != o.getClass()) return false;
         SelectedBMSMessage that = (SelectedBMSMessage) o;
-        return randomSeed == that.randomSeed && option == that.option && gauge == that.gauge && itemModeEnabled == that.itemModeEnabled && Objects.equals(md5, that.md5) && Objects.equals(title, that.title) && Objects.equals(artist, that.artist);
+        return randomSeed == that.randomSeed && totalNotes == that.totalNotes && option == that.option && gauge == that.gauge && itemModeEnabled == that.itemModeEnabled && Objects.equals(md5, that.md5) && Objects.equals(title, that.title) && Objects.equals(artist, that.artist);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(randomSeed, md5, title, artist, option, gauge, itemModeEnabled);
+        return Objects.hash(randomSeed, md5, title, artist, option, gauge, itemModeEnabled, totalNotes);
     }
 
     @Override

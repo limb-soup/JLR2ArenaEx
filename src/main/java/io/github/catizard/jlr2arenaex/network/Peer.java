@@ -13,6 +13,7 @@ public class Peer {
     private String selectedMD5 = "";
     private boolean ready;
     private Score score = new Score();
+    private int totalNotes;
     private int option;
     private int gauge;
 
@@ -28,6 +29,9 @@ public class Peer {
         this.score = new Score(arr.get(3));
         this.option = arr.get(4).asIntegerValue().toInt();
         this.gauge = arr.get(5).asIntegerValue().toInt();
+        if (arr.size() >= 6)
+            this.totalNotes = arr.get(6).asIntegerValue().toInt();
+        else this.totalNotes = 0;
     }
 
     public byte[] pack() {
@@ -40,6 +44,7 @@ public class Peer {
             packer.writePayload(score.pack());
             packer.packInt(option);
             packer.packInt(gauge);
+            packer.packInt(totalNotes);
             packer.close();
             return packer.toByteArray();
         } catch (IOException e) {
@@ -86,6 +91,14 @@ public class Peer {
         this.score = score;
     }
 
+    public int getTotalNotes(){
+        return totalNotes;
+    }
+
+    public void setTotalNotes(int totalNotes){
+        this.totalNotes = totalNotes;
+    }
+
     public int getOption() {
         return option;
     }
@@ -124,11 +137,11 @@ public class Peer {
     public boolean equals(Object o) {
         if (o == null || getClass() != o.getClass()) return false;
         Peer peer = (Peer) o;
-        return ready == peer.ready && option == peer.option && gauge == peer.gauge && Objects.equals(userName, peer.userName) && Objects.equals(selectedMD5, peer.selectedMD5) && Objects.equals(score, peer.score);
+        return ready == peer.ready && totalNotes == peer.totalNotes && option == peer.option && gauge == peer.gauge && Objects.equals(userName, peer.userName) && Objects.equals(selectedMD5, peer.selectedMD5) && Objects.equals(score, peer.score);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(userName, selectedMD5, ready, score, option, gauge);
+        return Objects.hash(userName, selectedMD5, ready, score, option, gauge, totalNotes);
     }
 }
