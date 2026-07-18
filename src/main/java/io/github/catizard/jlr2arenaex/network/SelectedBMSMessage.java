@@ -60,7 +60,7 @@ public class SelectedBMSMessage implements EqualsWithoutRandomPort<SelectedBMSMe
     public byte[] pack() {
         try {
             MessageBufferPacker packer = MessagePack.newDefaultBufferPacker();
-            packer.packArrayHeader(7);
+            packer.packArrayHeader(8);
             packer.packInt(this.randomSeed);
             packer.packString(md5);
             packer.packString(title);

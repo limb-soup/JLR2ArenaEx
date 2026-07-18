@@ -37,7 +37,7 @@ public class Peer {
     public byte[] pack() {
         try {
             MessageBufferPacker packer = MessagePack.newDefaultBufferPacker();
-            packer.packArrayHeader(6);
+            packer.packArrayHeader(7);
             packer.packString(userName);
             packer.packString(selectedMD5);
             packer.packBoolean(ready);
